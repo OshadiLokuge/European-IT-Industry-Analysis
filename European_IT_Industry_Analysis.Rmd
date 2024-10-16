@@ -1,0 +1,323 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
+# Load necessary libraries
+```{r}
+#install.packages("openxlsx")
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tools)
+```
+
+------ Question 1 -------
+
+```{r}
+# Read in the data set
+
+demographics <- read_csv("survey_employee_demographics.csv" ,na=c("","NA"))
+employment <- read_excel("survey_employee_employment_details.xlsx",na=c("","NA"))
+
+# Combine the two data frames
+
+combined_data <- merge(demographics, employment, by = "RecordID")
+
+
+# View the first few rows of combined data set
+head(combined_data)
+```
+
+------ Question 2 -------
+
+```{r}
+#-----(a)----
+
+# Get the summary statistics for numeric columns
+numeric_summary <- summary(combined_data)
+print(numeric_summary)
+
+# Get values to Create data frame
+# Function to get missing value counts
+missing_values <- sapply(combined_data, function(x) sum(is.na(x)))
+
+# Function to get data types
+data_types <- sapply(combined_data, class)
+
+
+# Summary of the combined DataFrame
+summary_data <- summary(combined_data)
+
+# Combine summary, data types, and missing values into a single DataFrame
+summary_df <- data.frame(
+  Variable = names(data_types),
+  DataType = data_types,
+  Min = sapply(combined_data, function(x) if(is.numeric(x)) min(x, na.rm = TRUE) else NA),
+  Max = sapply(combined_data, function(x) if(is.numeric(x)) max(x, na.rm = TRUE) else NA),
+  MissingValues = missing_values)
+
+
+# Print the combined summary DataFrame
+print(summary_df)
+
+
+#------(c)--------
+
+# Rename columns for clarity
+  
+combined_data <- combined_data %>%
+  rename(
+    record_id = RecordID,
+    age = Age,
+    gender = Gender,
+    city = City,
+    position = Position ,
+    total_years_experience = TotalYearsOfExperience,
+    years_experience_germany = YearsOfExperienceInGermany,
+    seniority_level = SeniorityLevel,
+    main_programming_language = YourMainProgrammingLanguage,
+    other_programming_languages = OtherProgrammingLanguagesYouUseOften,
+    yearly_brutto_salary_eur = YearlyBruttoSalaryInEUR,
+    yearly_bonus_stocks_eur = YearlyBonusAndStocksInEUR,
+    annual_brutto_salary_last_year = AnnualBruttoSalaryOneYearAgo,
+    annual_bonus_stocks_last_year = AnnualBonusAndStocksOneYearAgo,
+    vacation_days = NumberOfVacationDays,
+    employment_status = EmploymentStatus,
+    contract_duration = СontractDuration,
+    main_language_at_work = MainLanguageAtWork,
+    company_size = CompanySize,
+    company_type = CompanyType,
+    lost_job_due_to_covid = HaveYouLostYourJobDueToTheCoronavirusOutbreak,
+    forced_shorter_work_week = HaveYouBeenForcedToHaveAShorterWorkingWeekKnownAsKurzarbeitIfYesHowManyHoursPerWeek,
+    additional_support_wfh = HaveYouReceivedAdditionalMonetarySupportFromYourEmployerDueToWorkFromHomeIfYesHowMuchIn2020InEUR
+  )
+
+# Convert columns to appropriate data types
+combined_data <- combined_data %>%
+  mutate(
+    record_id = as.character(record_id),
+    age = as.numeric(age),
+    gender = as.character(gender),
+    city = as.character(city),
+    position = as.character(position),
+    total_years_experience = as.numeric(total_years_experience),
+    years_experience_germany = as.numeric(years_experience_germany),
+    seniority_level = as.character(seniority_level),
+    main_programming_language = as.character(main_programming_language),
+    other_programming_languages = as.character(other_programming_languages),
+    yearly_brutto_salary_eur = as.numeric(yearly_brutto_salary_eur),
+    yearly_bonus_stocks_eur = as.numeric(yearly_bonus_stocks_eur),
+    annual_brutto_salary_last_year = as.numeric(annual_brutto_salary_last_year),
+    annual_bonus_stocks_last_year = as.numeric(annual_bonus_stocks_last_year),
+    vacation_days = as.numeric(vacation_days),
+    employment_status = as.character(employment_status),
+    contract_duration = as.character(contract_duration),
+    main_language_at_work = as.character(main_language_at_work),
+    company_size = as.character(company_size),
+    company_type = as.character(company_type),
+    lost_job_due_to_covid = as.character(lost_job_due_to_covid),
+    forced_shorter_work_week = as.numeric(forced_shorter_work_week),
+    additional_support_wfh = as.numeric(additional_support_wfh)
+  )
+
+# Identify and handle outliers (e.g., remove unrealistic salary values)
+
+salary_threshold <- 500000  # Setting a threshold of 500,000 for annual salary
+
+combined_data <- combined_data %>%
+  filter(annual_brutto_salary_last_year < salary_threshold | is.na(annual_brutto_salary_last_year),
+         annual_bonus_stocks_last_year < salary_threshold | is.na(annual_bonus_stocks_last_year),
+         yearly_brutto_salary_eur < salary_threshold | is.na(yearly_brutto_salary_eur),
+         yearly_bonus_stocks_eur < salary_threshold | is.na(yearly_bonus_stocks_eur)
+         )
+
+# Display the  summary after remove outliers
+summary(combined_data)
+combined_data
+
+
+```
+
+```{r}
+summary(combined_data$yearly_brutto_salary_eur)
+
+# Create a histogram of YearlyBruttoSalaryInEUR after filtering
+ggplot(combined_data, aes(x = yearly_brutto_salary_eur)) +
+  geom_histogram(binwidth = 5000, fill = "purple", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Yearly Brutto Salary in EUR", x = "Yearly Brutto Salary (EUR)", y = "Frequency") +
+  theme_minimal()
+
+# Create a boxplot of YearlyBruttoSalaryInEUR after filtering
+ggplot(combined_data, aes(y = yearly_brutto_salary_eur)) +
+  geom_boxplot(fill = "purple", color = "black") +
+  labs(title = "Boxplot of Yearly Brutto Salary in EUR", y = "Yearly Brutto Salary (EUR)") +
+  theme_minimal()
+```
+
+
+```{r}
+# Remove rows with missing values in Gender
+cleaned_data <- combined_data %>%
+  filter(!is.na(gender))
+
+# Verify that there are no missing values in the Gender column
+sum(is.na(cleaned_data$gender))
+
+# Get summary statistics for YearlyBruttoSalaryInEUR based on Gender
+summary_by_gender <- cleaned_data %>%
+  group_by(gender) %>%
+  summarize(
+    Count = n(),
+    MeanSalary = mean(yearly_brutto_salary_eur, na.rm = TRUE),
+    MedianSalary = median(yearly_brutto_salary_eur, na.rm = TRUE),
+    MinSalary = min(yearly_brutto_salary_eur, na.rm = TRUE),
+    MaxSalary = max(yearly_brutto_salary_eur, na.rm = TRUE),
+  )
+
+# Print the summary statistics
+print(summary_by_gender)
+
+
+# Box plot to visualize salary distribution by gender
+ ggplot(cleaned_data, aes(x = gender, y = yearly_brutto_salary_eur)) +
+           geom_boxplot(fill = "purple", color = "black") +
+           labs(title = "Salary Distribution by Gender",
+                x = "Gender",
+                y = "Yearly Brutto Salary (EUR)")+
+  theme_minimal()
+
+# Bar plot to compare average salary by gender
+ggplot(cleaned_data, aes(x = gender, y = yearly_brutto_salary_eur)) +
+           stat_summary(fun = mean, geom = "bar", fill = "purple", color = "black") +
+           labs(title = "Average Salary by Gender",
+                x = "Gender",
+                y = "Average Yearly Brutto Salary (EUR)")+
+  theme_minimal()
+
+# Generate violin plot
+ggplot(cleaned_data, aes(x = gender, y = yearly_brutto_salary_eur, fill = gender)) +
+  geom_violin(alpha = 0.7) +
+  labs(title = "Violin Plot of Yearly Brutto Salary by Gender",
+       x = "Gender",
+       y = "Yearly Brutto Salary (EUR)") +
+  theme_minimal()
+
+
+```
+
+
+```{r}
+#-------- Factor 1: total_years_experience-----------
+
+# Identify and handle outliers (e.g., remove unrealistic total year experience)
+summary(combined_data$total_years_experience)
+
+total_experiance_threshold <- 100  # Setting a threshold of 100 years for total experiance
+
+filter_total_ex <- combined_data %>%
+  filter(total_years_experience < total_experiance_threshold | is.na(total_years_experience))
+
+# Remove rows with missing values in total year experience
+filter_total_ex <- filter_total_ex %>%
+  filter(!is.na(total_years_experience))
+
+summary(filter_total_ex$total_years_experience)
+
+
+# Scatter plot for total_years_experience vs Salary
+scatter_experience <- ggplot(filter_total_ex, aes(x = total_years_experience, y = yearly_brutto_salary_eur)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "purple", se = FALSE) +
+  labs(title = "Total Years of Experience vs Yearly Brutto Salary",
+       x = "Total Years of Experience",
+       y = "Yearly Brutto Salary (EUR)") +
+  theme_minimal()
+
+print(scatter_experience)
+
+#-------- Factor 2: SeniorityLevel -----------
+
+# Remove rows with missing values in total year experience
+filter_Seniority_level <- combined_data %>%
+  filter(!is.na(seniority_level))
+
+# Capitalize first letter of each category using toTitleCase() to remove duplicate same category
+filter_Seniority_level$seniority_level <- toTitleCase(filter_Seniority_level$seniority_level)
+
+# Summarize the data to get the average salary for each seniority level
+filter_Seniority_level <- filter_Seniority_level %>%
+  group_by(seniority_level) %>%
+  summarise(AverageSalary = mean(yearly_brutto_salary_eur, na.rm = TRUE))
+
+
+# Bar plot for SeniorityLevel vs Salary
+
+bar_seniority <- ggplot(data = filter_Seniority_level, aes(x = reorder(seniority_level, AverageSalary), y = AverageSalary, fill = seniority_level)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Seniority Level", y = "Average Yearly Brutto Salary (EUR)", fill = "Seniority Level") +
+  ggtitle("Comparison of Seniority Level and Average Income") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + coord_flip()
+  theme_minimal()
+
+print(bar_seniority)
+
+#-------- Factor 3: Main Programming Language -----------
+
+# Remove rows with missing values in Main Programming Language
+filter__main_language <- combined_data %>%
+  filter(!is.na(main_programming_language))
+
+
+# Summarize the data to get the average salary for each Main Programming Language
+filter__main_language <- filter__main_language %>%
+  group_by(main_programming_language ) %>%
+  summarise(AverageSalary = mean(yearly_brutto_salary_eur, na.rm = TRUE))  %>% arrange(desc(AverageSalary)) %>% slice(1:10)
+
+
+# Print the top 10 levels
+filter__main_language
+
+
+# Bar plot for MainProgrammingLanguage vs Salary
+
+bar_language <- ggplot(data = filter__main_language, aes(x = reorder(main_programming_language, AverageSalary), y = AverageSalary, fill = "main_programming_language")) +
+  geom_bar(stat = "identity") +
+  labs(x = "Main Programming Language", y = "Average Yearly Brutto Salary (EUR)", fill = "main_programming_language") +
+  ggtitle("Comparison of Main Programming Language and Average Income") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + coord_flip() + scale_fill_manual(values = "purple") + 
+  theme_minimal()
+
+print(bar_language)
+
+#-------- Factor4 : Contract Duration -----------
+
+# Remove rows with missing values in Contract Duration
+filter_contract_duration <- combined_data %>%
+  filter(!is.na(contract_duration))
+
+filter_contract_duration <- filter_contract_duration %>% filter(contract_duration != 0)
+
+# box plot for contract duratuin vs Salary
+box_contract <- ggplot(data = filter_contract_duration, aes(x = contract_duration, y = yearly_brutto_salary_eur, fill = contract_duration)) +
+  geom_boxplot() +
+  labs(x = "Contract Duration", y = "Yearly Brutto Salary (EUR)") +
+  ggtitle("Box Plot of Yearly Brutto Salary by Contract Duration") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(box_contract)
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
